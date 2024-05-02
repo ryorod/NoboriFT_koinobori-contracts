@@ -19,7 +19,7 @@ module koinobori::role {
     // === Init Function ===
 
     fun init(
-        otw: ROLE,
+        _otw: ROLE,
         ctx: &mut TxContext,
     ) {
         let master_admin_cap = MasterAdminCap{
