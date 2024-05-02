@@ -4,7 +4,7 @@ module koinobori::koinobori {
     use sui::package;
     use sui::display;
     use sui::event;
-    use sui::table::{Self, Table};
+    use sui::vec_set::{Self, VecSet};
     use std::string::String;
 
     use koinobori::role::AdminCap;
@@ -15,23 +15,23 @@ module koinobori::koinobori {
 
     public struct Koi has key, store {
         id: UID,
-        number: u16,
         // image: Option<Image>
         image_url: String,
+        nobori_id: ID,
     }
 
     public struct Nobori has key {
         id: UID,
         // image: Option<Image>
         image_url: Option<String>,
-        koi_collection: Table<u16, ID>,
+        koi_collection: VecSet<ID>,
     }
 
     // ===== Events =====
 
     public struct KoiAdded has copy, drop {
         object_id: ID,
-        number: u16,
+        nobori_id: ID,
         creator: address,
         epoch: u64,
     }
@@ -51,16 +51,16 @@ module koinobori::koinobori {
         let publisher = package::claim(otw, ctx);
 
         let mut koi_display = display::new<Koi>(&publisher, ctx);
-        koi_display.add(b"name".to_string(), b"koi #{number} - NoboriFT".to_string());
-        koi_display.add(b"description".to_string(), b"koi #{number} for \"koinobori\".".to_string());
-        koi_display.add(b"image_url".to_string(), b"ipfs://{image_url}".to_string());
+        koi_display.add(b"name".to_string(), b"koi - NoboriFT".to_string());
+        koi_display.add(b"description".to_string(), b"A \"koi\" for \"koinobori\".".to_string());
+        koi_display.add(b"image_url".to_string(), b"{image_url}".to_string());
         koi_display.add(b"project_url".to_string(), b"https://koinobori2024.junni.dev".to_string());
         koi_display.update_version();
 
         let mut nobori_display = display::new<Nobori>(&publisher, ctx);
         nobori_display.add(b"name".to_string(), b"koinobori - NoboriFT".to_string());
         nobori_display.add(b"description".to_string(), b"A school of \"koi\" as a \"nobori\".".to_string());
-        nobori_display.add(b"image_url".to_string(), b"ipfs://{image_url}".to_string());
+        nobori_display.add(b"image_url".to_string(), b"{image_url}".to_string());
         nobori_display.add(b"project_url".to_string(), b"https://koinobori2024.junni.dev".to_string());
         nobori_display.update_version();
 
@@ -72,7 +72,7 @@ module koinobori::koinobori {
             id: object::new(ctx),
             // image: option::none(),
             image_url: option::none(),
-            koi_collection: table::new(ctx),
+            koi_collection: vec_set::empty(),
         };
 
         event::emit(NoboriCreated {
@@ -95,25 +95,25 @@ module koinobori::koinobori {
     ) {
         cap.verify_admin_cap(ctx);
 
-        let number = (nobori.koi_collection.length() as u16) + 1;
+        let nobori_id = object::id(nobori);
 
         let koi = Koi {
             id: object::new(ctx),
-            number: number,
             // image: option::none(),
             image_url: image_url,
+            nobori_id: nobori_id,
         };
 
-        let object_id = object::id(&koi);
+        let koi_id = object::id(&koi);
 
         event::emit(KoiAdded {
-            object_id: object_id,
-            number: number,
+            object_id: koi_id,
+            nobori_id: nobori_id,
             creator: ctx.sender(),
             epoch: ctx.epoch(),
         });
 
-        nobori.koi_collection.add(number, object_id);
+        nobori.koi_collection.insert(koi_id);
         transfer::transfer(koi, koi_receiver);
     }
 }
