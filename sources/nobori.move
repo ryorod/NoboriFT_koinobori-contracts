@@ -70,7 +70,7 @@ module koinobori::nobori {
         cap: &AdminCap,
         nobori: &mut Nobori,
         image_url: String,
-        koi_receiver: address,
+        koi_recipient: address,
         ctx: &mut TxContext,
     ) {
         cap.verify_admin_cap(ctx);
@@ -78,6 +78,6 @@ module koinobori::nobori {
         let koi = koi::new(object::id(nobori), image_url, ctx);
 
         nobori.koi_collection.insert(object::id(&koi));
-        transfer::public_transfer(koi, koi_receiver);
+        transfer::public_transfer(koi, koi_recipient);
     }
 }

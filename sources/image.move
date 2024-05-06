@@ -279,11 +279,4 @@ module koinobori::image {
         let content_value = image.content.borrow(content_key.get_with_default(b"".to_string()));
         assert!(content_value.is_some(), EImageContentMissingValue);
     }
-
-    /// Return the ID of an Image.
-    public(package) fun id(
-        image: &Image,
-    ): ID {
-        object::id(image)
-    }
 }

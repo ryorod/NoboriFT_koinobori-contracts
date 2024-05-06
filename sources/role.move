@@ -36,11 +36,11 @@ module koinobori::role {
 
     entry fun grant_admin_cap(
         _: &MasterAdminCap,
-        receiver: address,
+        beneficiary: address,
         ctx: &mut TxContext,
     ) {
         let admin_cap = create_admin_cap(ctx);
-        transfer::transfer(admin_cap, receiver)
+        transfer::transfer(admin_cap, beneficiary)
     }
 
     public fun destroy_admin_cap(
