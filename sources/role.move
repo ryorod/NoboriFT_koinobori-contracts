@@ -43,7 +43,7 @@ module koinobori::role {
         transfer::transfer(admin_cap, receiver)
     }
 
-    public fun revoke_admin_cap(
+    public fun destroy_admin_cap(
         cap: AdminCap,
     ) {
         let AdminCap { id, epoch: _ } = cap;
