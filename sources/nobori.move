@@ -8,8 +8,13 @@ module koinobori::nobori {
     use std::string::String;
 
     use koinobori::koi;
-    use koinobori::image::Image;
+    use koinobori::image::{Self, Image};
     use koinobori::role::AdminCap;
+
+    // === Errors ===
+
+    const EImageAlreadySet: u64 = 1;
+    const EImageNotSet: u64 = 2;
 
     // === Structs ===
 
@@ -43,6 +48,7 @@ module koinobori::nobori {
         display.add(b"description".to_string(), b"A school of \"koi\" as a \"nobori\".".to_string());
         display.add(b"image_url".to_string(), b"{image_url}".to_string());
         display.add(b"project_url".to_string(), b"https://koinobori2024.junni.dev".to_string());
+        display.add(b"koi_collection".to_string(), b"{koi_collection}".to_string());
         display.update_version();
 
         transfer::public_transfer(publisher, ctx.sender());
@@ -79,5 +85,56 @@ module koinobori::nobori {
 
         nobori.koi_collection.insert(object::id(&koi));
         transfer::public_transfer(koi, koi_recipient);
+    }
+
+    public fun set_image(
+        cap: &AdminCap,
+        nobori: &mut Nobori,
+        image: Image,
+        ctx: &mut TxContext,
+    ) {
+        cap.verify_admin_cap(ctx);
+        assert!(nobori.image.is_none(), EImageAlreadySet);
+
+        nobori.image.fill(image);
+    }
+
+    public fun unset_image(
+        cap: &AdminCap,
+        nobori: &mut Nobori,
+        ctx: &mut TxContext,
+    ) {
+        cap.verify_admin_cap(ctx);
+        assert!(nobori.image.is_some(), EImageNotSet);
+
+        let old_image = nobori.image.extract();
+        let promise = image::issue_delete_image_promise(&old_image);
+        
+        image::delete_image(old_image, promise);
+    }
+
+    public fun swap_image(
+        cap: &AdminCap,
+        nobori: &mut Nobori,
+        new_image: Image,
+        ctx: &mut TxContext,
+    ) {
+        cap.verify_admin_cap(ctx);
+
+        let old_image = nobori.image.swap(new_image);
+        let promise = image::issue_delete_image_promise(&old_image);
+
+        image::delete_image(old_image, promise);
+    }
+
+    public fun update_image_url(
+        cap: &AdminCap,
+        nobori: &mut Nobori,
+        new_image_url: String,
+        ctx: &mut TxContext,
+    ) {
+        cap.verify_admin_cap(ctx);
+
+        nobori.image_url = option::some(new_image_url);
     }
 }
