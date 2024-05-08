@@ -80,13 +80,13 @@ module koinobori::image {
         image_id: ID,
     }
 
-    // === Public-Mutative Functions ===
+    // === Entry Functions ===
 
-    public fun create_image(
+    entry fun create_image(
         cap: &AdminCap,
         image_hash: String,
         ctx: &mut TxContext,
-    ): Image {
+    ) {
         cap.verify_admin_cap(ctx);
 
         let mut image = Image {
@@ -128,10 +128,10 @@ module koinobori::image {
             }
         );
 
-        image
+        transfer::transfer(image, ctx.sender());
     }
 
-    public fun create_and_transfer_image_content(
+    entry fun create_and_transfer_image_content(
         cap: CreateImageContentCap,
         mut data: vector<String>,
         ctx: &mut TxContext,
@@ -192,6 +192,8 @@ module koinobori::image {
         id.delete();
     }
 
+    // === Receive Functions ===
+
     public fun receive_and_register_image_content(
         image: &mut Image,
         cap_to_receive: Receiving<RegisterImageContentCap>,
@@ -233,6 +235,8 @@ module koinobori::image {
 
         id.delete();
     }
+
+    // === Delete Function ===
 
     public fun delete_image(
         image: Image,

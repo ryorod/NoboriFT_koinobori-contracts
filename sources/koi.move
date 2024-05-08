@@ -12,7 +12,6 @@ module koinobori::koi {
     // === Errors ===
 
     const EImageAlreadySet: u64 = 1;
-    const EImageNotSet: u64 = 2;
 
     // === Structs ===
 
@@ -80,11 +79,11 @@ module koinobori::koi {
 
     // === Admin Functions ===
 
-    public fun set_image(
+    entry fun set_image(
         cap: &AdminCap,
         koi: &mut Koi,
         image: Image,
-        ctx: &mut TxContext,
+        ctx: &TxContext,
     ) {
         cap.verify_admin_cap(ctx);
         assert!(koi.image.is_none(), EImageAlreadySet);
@@ -92,25 +91,11 @@ module koinobori::koi {
         koi.image.fill(image);
     }
 
-    public fun unset_image(
-        cap: &AdminCap,
-        koi: &mut Koi,
-        ctx: &mut TxContext,
-    ) {
-        cap.verify_admin_cap(ctx);
-        assert!(koi.image.is_some(), EImageNotSet);
-
-        let old_image = koi.image.extract();
-        let promise = image::issue_delete_image_promise(&old_image);
-        
-        image::delete_image(old_image, promise);
-    }
-
-    public fun swap_image(
+    entry fun swap_image(
         cap: &AdminCap,
         koi: &mut Koi,
         new_image: Image,
-        ctx: &mut TxContext,
+        ctx: &TxContext,
     ) {
         cap.verify_admin_cap(ctx);
 
@@ -120,11 +105,11 @@ module koinobori::koi {
         image::delete_image(old_image, promise);
     }
 
-    public fun update_image_url(
+    entry fun update_image_url(
         cap: &AdminCap,
         koi: &mut Koi,
         new_image_url: String,
-        ctx: &mut TxContext,
+        ctx: &TxContext,
     ) {
         cap.verify_admin_cap(ctx);
 

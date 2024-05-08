@@ -14,7 +14,6 @@ module koinobori::nobori {
     // === Errors ===
 
     const EImageAlreadySet: u64 = 1;
-    const EImageNotSet: u64 = 2;
 
     // === Structs ===
 
@@ -72,7 +71,7 @@ module koinobori::nobori {
 
     // === Admin Functions ===
 
-    public fun create_insert_and_transfer_koi(
+    entry fun create_insert_and_transfer_koi(
         cap: &AdminCap,
         nobori: &mut Nobori,
         image_url: String,
@@ -87,11 +86,11 @@ module koinobori::nobori {
         transfer::public_transfer(koi, koi_recipient);
     }
 
-    public fun set_image(
+    entry fun set_image(
         cap: &AdminCap,
         nobori: &mut Nobori,
         image: Image,
-        ctx: &mut TxContext,
+        ctx: &TxContext,
     ) {
         cap.verify_admin_cap(ctx);
         assert!(nobori.image.is_none(), EImageAlreadySet);
@@ -99,25 +98,11 @@ module koinobori::nobori {
         nobori.image.fill(image);
     }
 
-    public fun unset_image(
-        cap: &AdminCap,
-        nobori: &mut Nobori,
-        ctx: &mut TxContext,
-    ) {
-        cap.verify_admin_cap(ctx);
-        assert!(nobori.image.is_some(), EImageNotSet);
-
-        let old_image = nobori.image.extract();
-        let promise = image::issue_delete_image_promise(&old_image);
-        
-        image::delete_image(old_image, promise);
-    }
-
-    public fun swap_image(
+    entry fun swap_image(
         cap: &AdminCap,
         nobori: &mut Nobori,
         new_image: Image,
-        ctx: &mut TxContext,
+        ctx: &TxContext,
     ) {
         cap.verify_admin_cap(ctx);
 
@@ -127,11 +112,11 @@ module koinobori::nobori {
         image::delete_image(old_image, promise);
     }
 
-    public fun update_image_url(
+    entry fun update_image_url(
         cap: &AdminCap,
         nobori: &mut Nobori,
         new_image_url: String,
-        ctx: &mut TxContext,
+        ctx: &TxContext,
     ) {
         cap.verify_admin_cap(ctx);
 
