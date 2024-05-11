@@ -4,12 +4,9 @@ module koinobori::image {
     use sui::event;
     use sui::dynamic_field;
     use sui::hex;
-    use sui::transfer::Receiving;
-    use sui::linked_table::{Self, LinkedTable};
+    use sui::vec_map::{Self, VecMap};
     use std::hash;
     use std::string::String;
-
-    use koinobori::role::AdminCap;
 
     // === Errors ===
 
@@ -17,8 +14,7 @@ module koinobori::image {
     const EWrongImageForContent: u64 = 2;
     const EImagePromiseMismatch: u64 = 3;
     const EImageContentNotDeleted: u64 = 4;
-    const EImageContentMissingKey: u64 = 5;
-    const EImageContentMissingValue: u64 = 6;
+    const EImageContentMissingValue: u64 = 5;
 
     // === Structs ===
 
@@ -30,7 +26,7 @@ module koinobori::image {
         mime_type: String,
         extension: String,
         // Stores a mapping between the image content's SHA-256 hash and its ID.
-        content: LinkedTable<String, Option<ID>>,
+        content: VecMap<String, Option<ID>>,
     }
 
     public struct ImageContent has key {
@@ -80,21 +76,19 @@ module koinobori::image {
         image_id: ID,
     }
 
-    // === Entry Functions ===
+    // === Public-Mutative Functions ===
 
-    entry fun create_image(
-        cap: &AdminCap,
+    public fun create_image(
         image_hash: String,
+        data: vector<String>,
         ctx: &mut TxContext,
-    ) {
-        cap.verify_admin_cap(ctx);
-
+    ): Image {
         let mut image = Image {
             id: object::new(ctx),
             encoding: b"base85".to_string(),
             mime_type: b"image/avif".to_string(),
             extension: b"avif".to_string(),
-            content: linked_table::new(ctx),
+            content: vec_map::empty(),
         };
 
         let create_image_content_cap = CreateImageContentCap {
@@ -111,7 +105,7 @@ module koinobori::image {
             }
         );
 
-        image.content.push_front(image_hash, option::none());
+        image.content.insert(image_hash, option::none());
 
         // Add a dynamic field to store the CreateImageContentCap ID.
         dynamic_field::add(
@@ -120,20 +114,23 @@ module koinobori::image {
             object::id(&create_image_content_cap),
         );
 
-        transfer::transfer(create_image_content_cap, ctx.sender());
-
         event::emit(
             ImageCreated {
                 id: object::id(&image),
             }
         );
 
-        transfer::transfer(image, ctx.sender());
+        create_and_transfer_image_content(create_image_content_cap, data, &mut image, ctx);
+
+        image
     }
 
-    entry fun create_and_transfer_image_content(
+    // === Private Functions ===
+
+    fun create_and_transfer_image_content(
         cap: CreateImageContentCap,
         mut data: vector<String>,
+        image: &mut Image,
         ctx: &mut TxContext,
     ) {
         // Create an empty string.
@@ -182,7 +179,6 @@ module koinobori::image {
 
         // Transfer content to the image directly.
         transfer::transfer(content, cap.image_id.to_address());
-        transfer::transfer(register_image_content_cap, cap.image_id.to_address());
 
         let CreateImageContentCap {
             id,
@@ -190,18 +186,17 @@ module koinobori::image {
             image_id: _,
         } = cap;
         id.delete();
+
+        register_image_content(register_image_content_cap, image);
     }
 
-    // === Receive Functions ===
-
-    public fun receive_and_register_image_content(
+    fun register_image_content(
+        cap: RegisterImageContentCap,
         image: &mut Image,
-        cap_to_receive: Receiving<RegisterImageContentCap>,
     ) {
-        let cap = transfer::receive(&mut image.id, cap_to_receive);
         assert!(cap.image_id == object::id(image), EWrongImageForContent);
 
-        let content_opt = image.content.borrow_mut(cap.content_hash);
+        let content_opt = &mut image.content[&cap.content_hash];
         content_opt.fill(cap.content_id);
 
         // remove the "create_image_content_cap_id" dynamic field.
@@ -217,13 +212,13 @@ module koinobori::image {
         id.delete();
     }
 
-    public fun receive_and_destroy_image_content(
-        image: &mut Image,
-        content_to_receive: Receiving<ImageContent>,
-    ) {
-        let content = transfer::receive(&mut image.id, content_to_receive);
+    // === Delete Functions ===
 
-        let content_opt = image.content.remove(content.hash);
+    public fun delete_image_content(
+        image: &mut Image,
+        content: ImageContent,
+    ) {
+        let (_content_hash, content_opt) = image.content.remove(&content.hash);
         let _content_id = content_opt.destroy_some();
 
         let ImageContent {
@@ -235,8 +230,6 @@ module koinobori::image {
 
         id.delete();
     }
-
-    // === Delete Function ===
 
     public fun delete_image(
         image: Image,
@@ -277,10 +270,14 @@ module koinobori::image {
     public(package) fun verify_image_content_registered(
         image: &Image,
     ) {
-        let content_key = image.content.front();
-        assert!(content_key.is_some(), EImageContentMissingKey);
+        let mut content_keys = image.content.keys();
 
-        let content_value = image.content.borrow(content_key.get_with_default(b"".to_string()));
-        assert!(content_value.is_some(), EImageContentMissingValue);
+        while (!content_keys.is_empty()) {
+            let content_key = content_keys.pop_back();
+            let content_value = &image.content[&content_key];
+            assert!(content_value.is_some(), EImageContentMissingValue);
+        };
+
+        content_keys.destroy_empty();
     }
 }

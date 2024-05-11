@@ -74,13 +74,16 @@ module koinobori::nobori {
     entry fun create_insert_and_transfer_koi(
         cap: &AdminCap,
         nobori: &mut Nobori,
+        image_hash: String,
+        data: vector<String>,
         image_url: String,
         koi_recipient: address,
         ctx: &mut TxContext,
     ) {
         cap.verify_admin_cap(ctx);
 
-        let koi = koi::new(object::id(nobori), image_url, ctx);
+        let image = image::create_image(image_hash, data, ctx);
+        let koi = koi::new(object::id(nobori), image, image_url, ctx);
 
         nobori.koi_collection.insert(object::id(&koi));
         transfer::public_transfer(koi, koi_recipient);
@@ -89,27 +92,16 @@ module koinobori::nobori {
     entry fun set_image(
         cap: &AdminCap,
         nobori: &mut Nobori,
-        image: Image,
-        ctx: &TxContext,
+        image_hash: String,
+        data: vector<String>,
+        ctx: &mut TxContext,
     ) {
         cap.verify_admin_cap(ctx);
         assert!(nobori.image.is_none(), EImageAlreadySet);
 
+        let image = image::create_image(image_hash, data, ctx);
+
         nobori.image.fill(image);
-    }
-
-    entry fun swap_image(
-        cap: &AdminCap,
-        nobori: &mut Nobori,
-        new_image: Image,
-        ctx: &TxContext,
-    ) {
-        cap.verify_admin_cap(ctx);
-
-        let old_image = nobori.image.swap(new_image);
-        let promise = image::issue_delete_image_promise(&old_image);
-
-        image::delete_image(old_image, promise);
     }
 
     entry fun update_image_url(

@@ -6,12 +6,8 @@ module koinobori::koi {
     use sui::event;
     use std::string::String;
 
-    use koinobori::image::{Self, Image};
+    use koinobori::image::Image;
     use koinobori::role::AdminCap;
-
-    // === Errors ===
-
-    const EImageAlreadySet: u64 = 1;
 
     // === Structs ===
 
@@ -57,12 +53,13 @@ module koinobori::koi {
 
     public(package) fun new(
         nobori_id: ID,
+        image: Image,
         image_url: String,
         ctx: &mut TxContext,
     ): Koi {
         let koi = Koi {
             id: object::new(ctx),
-            image: option::none(),
+            image: option::some(image),
             image_url: image_url,
             nobori_id: nobori_id,
         };
@@ -78,32 +75,6 @@ module koinobori::koi {
     }
 
     // === Admin Functions ===
-
-    entry fun set_image(
-        cap: &AdminCap,
-        koi: &mut Koi,
-        image: Image,
-        ctx: &TxContext,
-    ) {
-        cap.verify_admin_cap(ctx);
-        assert!(koi.image.is_none(), EImageAlreadySet);
-
-        koi.image.fill(image);
-    }
-
-    entry fun swap_image(
-        cap: &AdminCap,
-        koi: &mut Koi,
-        new_image: Image,
-        ctx: &TxContext,
-    ) {
-        cap.verify_admin_cap(ctx);
-
-        let old_image = koi.image.swap(new_image);
-        let promise = image::issue_delete_image_promise(&old_image);
-
-        image::delete_image(old_image, promise);
-    }
 
     entry fun update_image_url(
         cap: &AdminCap,
